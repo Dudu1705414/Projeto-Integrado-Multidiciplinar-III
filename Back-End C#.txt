@@ -1,0 +1,451 @@
+using System;
+using System.Collections.Generic;
+
+namespace PlataformaEducacional
+{
+    // =====================================================
+    // ENUMS
+    // =====================================================
+
+    public enum TipoUsuario
+    {
+        Estudante,
+        Tutor,
+        Administrador
+    }
+
+    public enum TipoDesafio
+    {
+        MultiplaEscolha,
+        Dissertativo,
+        Pratico
+    }
+
+    // =====================================================
+    // CLASSE BASE: Usuario
+    // =====================================================
+
+    public abstract class Usuario
+    {
+        public int Id { get; set; }
+        public string Nome { get; set; }
+        public string Email { get; set; }
+        public TipoUsuario Tipo { get; set; }
+
+        public Usuario(string nome, string email, TipoUsuario tipo)
+        {
+            Nome = nome;
+            Email = email;
+            Tipo = tipo;
+        }
+
+        public abstract bool Autenticar(string senha);
+    }
+
+    // =====================================================
+    // CLASSE: Estudante (herda de Usuario)
+    // =====================================================
+
+    public class Estudante : Usuario
+    {
+        public int NivelAtual { get; private set; }
+        public int Experiencia { get; private set; }
+        public int ProximoNivel { get; private set; }
+        public string AreaDeEstudo { get; set; }
+
+        private List<Desafio> desafios = new List<Desafio>();
+        private Ranking ranking;
+
+        public Estudante(string nome, string email, string areaDeEstudo)
+            : base(nome, email, TipoUsuario.Estudante)
+        {
+            NivelAtual = 1;
+            Experiencia = 0;
+            ProximoNivel = 100;
+            AreaDeEstudo = areaDeEstudo;
+        }
+
+        public override bool Autenticar(string senha)
+        {
+            // Lógica de autenticação
+            return !string.IsNullOrEmpty(senha);
+        }
+
+        public void AcessarDesafios()
+        {
+            Console.WriteLine($"{Nome} está acessando os desafios disponíveis.");
+        }
+
+        public void SelecionarDesafio(Desafio desafio)
+        {
+            desafios.Add(desafio);
+            Console.WriteLine($"{Nome} selecionou o desafio: {desafio.Titulo}");
+        }
+
+        public bool CompletarDesafio(Desafio desafio, List<string> respostas)
+        {
+            bool resultado = desafio.ValidarRespostas(respostas);
+            if (resultado)
+            {
+                GanharXP(desafio.DificuldadeXP);
+                Console.WriteLine($"Desafio concluído! +{desafio.DificuldadeXP} XP");
+            }
+            return resultado;
+        }
+
+        public void GanharXP(int xp)
+        {
+            Experiencia += xp;
+            AtualizarNivel();
+        }
+
+        public void AdicionarXP(int xp)
+        {
+            Experiencia += xp;
+            Console.WriteLine($"{Nome} ganhou {xp} XP. Total: {Experiencia}");
+            AtualizarNivel();
+        }
+
+        private void AtualizarNivel()
+        {
+            while (Experiencia >= ProximoNivel)
+            {
+                Experiencia -= ProximoNivel;
+                NivelAtual++;
+                ProximoNivel = CalcularXP(NivelAtual);
+                Console.WriteLine($"{Nome} subiu para o nível {NivelAtual}!");
+            }
+        }
+
+        private int CalcularXP(int nivel)
+        {
+            return nivel * 100;
+        }
+
+        public int ObterPosicao()
+        {
+            return ranking?.ObterPosicao(this) ?? 0;
+        }
+
+        public void ExibirDesafios()
+        {
+            Console.WriteLine($"Desafios de {Nome}:");
+            foreach (var d in desafios)
+                Console.WriteLine($"  - {d.Titulo} ({d.Dificuldade})");
+        }
+    }
+
+    // =====================================================
+    // CLASSE: Tutor (herda de Usuario)
+    // =====================================================
+
+    public class Tutor : Usuario
+    {
+        public string Especialidade { get; set; }
+        private List<Desafio> desafiosCriados = new List<Desafio>();
+        private List<string> conteudos = new List<string>();
+
+        public Tutor(string nome, string email, string especialidade)
+            : base(nome, email, TipoUsuario.Tutor)
+        {
+            Especialidade = especialidade;
+        }
+
+        public override bool Autenticar(string senha)
+        {
+            return !string.IsNullOrEmpty(senha);
+        }
+
+        public void CriarDesafio(Desafio desafio)
+        {
+            desafiosCriados.Add(desafio);
+            Console.WriteLine($"Tutor {Nome} criou o desafio: {desafio.Titulo}");
+        }
+
+        public void CriarConteudo(string conteudo)
+        {
+            conteudos.Add(conteudo);
+            Console.WriteLine($"Tutor {Nome} criou conteúdo: {conteudo}");
+        }
+
+        public void AvaliarEstudante(Estudante estudante)
+        {
+            Console.WriteLine($"Tutor {Nome} avaliando estudante: {estudante.Nome} - Nível {estudante.NivelAtual}");
+        }
+
+        public void SugerirTrilha(Estudante estudante)
+        {
+            Console.WriteLine($"Tutor {Nome} sugerindo trilha de aprendizado para {estudante.Nome}");
+        }
+
+        public List<string> ListarConteudos()
+        {
+            return conteudos;
+        }
+    }
+
+    // =====================================================
+    // CLASSE: Dev / Administrador (herda de Usuario)
+    // =====================================================
+
+    public class Dev : Usuario
+    {
+        private List<Usuario> listaUsuarios = new List<Usuario>();
+
+        public Dev(string nome, string email)
+            : base(nome, email, TipoUsuario.Administrador)
+        {
+        }
+
+        public override bool Autenticar(string senha)
+        {
+            return !string.IsNullOrEmpty(senha);
+        }
+
+        public void ManterPlataforma()
+        {
+            Console.WriteLine("Administrador realizando manutenção da plataforma.");
+        }
+
+        public void GerenciarXP(Estudante estudante, int xp)
+        {
+            estudante.AdicionarXP(xp);
+            Console.WriteLine($"XP ajustado para {estudante.Nome}: +{xp}");
+        }
+
+        public void AtualizarRanking(Ranking ranking)
+        {
+            ranking.Atualizar();
+            Console.WriteLine("Ranking atualizado pelo administrador.");
+        }
+
+        public List<Usuario> ListarUsuarios()
+        {
+            return listaUsuarios;
+        }
+
+        public void AdicionarUsuario(Usuario usuario)
+        {
+            listaUsuarios.Add(usuario);
+        }
+    }
+
+    // =====================================================
+    // CLASSE: Desafio
+    // =====================================================
+
+    public class Desafio
+    {
+        public int Id { get; set; }
+        public string Titulo { get; set; }
+        public TipoDesafio Tipo { get; set; }
+        public string Dificuldade { get; set; }
+        public int DificuldadeXP { get; set; }
+        public string Curso { get; set; }
+        private List<string> respostasCorretas = new List<string>();
+
+        public Desafio(string titulo, TipoDesafio tipo, string dificuldade, int dificuldadeXP, string curso)
+        {
+            Titulo = titulo;
+            Tipo = tipo;
+            Dificuldade = dificuldade;
+            DificuldadeXP = dificuldadeXP;
+            Curso = curso;
+        }
+
+        public void AdicionarResposta(string resposta)
+        {
+            respostasCorretas.Add(resposta);
+        }
+
+        public bool ValidarRespostas(List<string> respostas)
+        {
+            if (respostas.Count != respostasCorretas.Count)
+                return false;
+
+            for (int i = 0; i < respostas.Count; i++)
+            {
+                if (!respostas[i].Equals(respostasCorretas[i], StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+            return true;
+        }
+
+        public void CarregarDesafio()
+        {
+            Console.WriteLine($"Carregando desafio: {Titulo} - Curso: {Curso}");
+        }
+
+        public void ExibirDesafio()
+        {
+            Console.WriteLine($"[{Dificuldade}] {Titulo} | XP: {DificuldadeXP}");
+        }
+    }
+
+    // =====================================================
+    // CLASSE: ProvaNivelamento
+    // =====================================================
+
+    public class ProvaNivelamento
+    {
+        public int Id { get; set; }
+        public List<Desafio> Questoes { get; private set; } = new List<Desafio>();
+
+        public void GerarProva()
+        {
+            Console.WriteLine("Gerando prova de nivelamento...");
+            // Lógica de seleção de questões por nível
+        }
+
+        public void ApresentarQuestoes()
+        {
+            Console.WriteLine("Questões da prova de nivelamento:");
+            foreach (var q in Questoes)
+                q.ExibirDesafio();
+        }
+
+        public void ListarDisponiveis()
+        {
+            Console.WriteLine("Provas disponíveis listadas.");
+        }
+
+        public int Corrigir(List<string> respostas)
+        {
+            int acertos = 0;
+            for (int i = 0; i < Questoes.Count; i++)
+            {
+                if (i < respostas.Count && Questoes[i].ValidarRespostas(new List<string> { respostas[i] }))
+                    acertos++;
+            }
+            Console.WriteLine($"Resultado: {acertos}/{Questoes.Count} acertos.");
+            return acertos;
+        }
+
+        public int RetornarNivel(int acertos)
+        {
+            int total = Questoes.Count;
+            if (total == 0) return 1;
+
+            double percentual = (double)acertos / total;
+
+            if (percentual >= 0.8) return 3;
+            if (percentual >= 0.5) return 2;
+            return 1;
+        }
+
+        public void ExibirResultado(int nivel)
+        {
+            Console.WriteLine($"Seu nível inicial é: {nivel}");
+        }
+
+        public void AtualizarNivel(Estudante estudante, int nivel)
+        {
+            Console.WriteLine($"Nível de {estudante.Nome} atualizado para {nivel}.");
+        }
+
+        public void MostrarResultado(int acertos)
+        {
+            Console.WriteLine($"Prova finalizada. Acertos: {acertos}");
+        }
+    }
+
+    // =====================================================
+    // CLASSE: Ranking
+    // =====================================================
+
+    public class Ranking
+    {
+        public int Id { get; set; }
+        public List<Estudante> Posicoes { get; private set; } = new List<Estudante>();
+        public List<string> Recompensas { get; private set; } = new List<string>();
+
+        public void Atualizar()
+        {
+            Posicoes.Sort((a, b) => b.Experiencia.CompareTo(a.Experiencia));
+            Console.WriteLine("Ranking atualizado.");
+        }
+
+        public int ObterPosicao(Estudante estudante)
+        {
+            return Posicoes.IndexOf(estudante) + 1;
+        }
+
+        public void AdicionarEstudante(Estudante estudante)
+        {
+            if (!Posicoes.Contains(estudante))
+                Posicoes.Add(estudante);
+        }
+
+        public void ExibirRanking()
+        {
+            Console.WriteLine("=== RANKING ===");
+            for (int i = 0; i < Posicoes.Count; i++)
+            {
+                Console.WriteLine($"{i + 1}. {Posicoes[i].Nome} - {Posicoes[i].Experiencia} XP");
+            }
+        }
+
+        public void AtualizarPosicao(Estudante estudante)
+        {
+            Atualizar();
+            int pos = ObterPosicao(estudante);
+            Console.WriteLine($"{estudante.Nome} está na posição {pos} do ranking.");
+        }
+    }
+
+    // =====================================================
+    // PROGRAMA PRINCIPAL
+    // =====================================================
+
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("=== Plataforma Educacional - PIM III ===\n");
+
+            // Criando usuários
+            var estudante = new Estudante("João Silva", "joao@email.com", "Desenvolvimento de Software");
+            var tutor = new Tutor("Ana Costa", "ana@email.com", "Programação C#");
+            var admin = new Dev("Carlos Admin", "admin@email.com");
+
+            // Criando desafio
+            var desafio = new Desafio("Introdução ao C#", TipoDesafio.MultiplaEscolha, "Fácil", 50, "Programação");
+            desafio.AdicionarResposta("Console.WriteLine");
+
+            tutor.CriarDesafio(desafio);
+
+            // Fluxo do estudante
+            estudante.AcessarDesafios();
+            estudante.SelecionarDesafio(desafio);
+            estudante.CompletarDesafio(desafio, new List<string> { "Console.WriteLine" });
+
+            // Prova de nivelamento
+            var prova = new ProvaNivelamento();
+            prova.GerarProva();
+            prova.Questoes.Add(desafio);
+            prova.ApresentarQuestoes();
+
+            int acertos = prova.Corrigir(new List<string> { "Console.WriteLine" });
+            int nivel = prova.RetornarNivel(acertos);
+            prova.ExibirResultado(nivel);
+            prova.AtualizarNivel(estudante, nivel);
+
+            // Ranking
+            var ranking = new Ranking();
+            ranking.AdicionarEstudante(estudante);
+            ranking.Atualizar();
+            ranking.ExibirRanking();
+
+            // Avaliação do tutor
+            tutor.AvaliarEstudante(estudante);
+            tutor.SugerirTrilha(estudante);
+
+            // Administração
+            admin.ManterPlataforma();
+            admin.GerenciarXP(estudante, 100);
+            admin.AtualizarRanking(ranking);
+
+            Console.WriteLine("\nSistema encerrado.");
+        }
+    }
+}
